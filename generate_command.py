@@ -1,16 +1,22 @@
 import math
+import os
 
-string = "mpv videos/colors0.avi"
-num_videos = 6
-
-for i in range(1, num_videos):
-    string += f" --external-file=videos/colors{i}.avi"
+videos = os.listdir('videos')
+videos = [video for video in videos if video != 'blank.avi' and '.avi' in video]
+videos.sort()
+num_videos = len(videos)
 
 # number cols / number rows >= 1920/1080 (closer to ==)
 # number cols * number rows >= num_videos (closer to ==)
 # number cols >= number rows > 0
 rows = math.ceil(math.sqrt(num_videos * 1080/1920))
 cols = math.ceil(num_videos/rows)
+
+string = f"mpv videos/{videos[0]}"
+for i in range(1, num_videos):
+    string += f" --external-file=videos/{videos[i]}"
+for i in range(num_videos, rows*cols):
+    string += f" --external-file=videos/blank.avi"
 
 lavfi_strings = []
 for r in range(rows):
@@ -25,5 +31,6 @@ lavfi_strings.append(col_string)
 string += " --lavfi-complex='" + " ; ".join(lavfi_strings) + "'"
 
 string += " --window-maximized"
+string += " --loop"
 
 print(string)
