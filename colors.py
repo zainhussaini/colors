@@ -68,15 +68,14 @@ def generate_frame(frame_size_final, scale, colors, angle):
 
     new_img = base_img.copy()
     for i in range(3):
-        points = triangle_coordinates(frame_size, i*angle)
+        points = triangle_coordinates(frame_size, (i+1)*angle)
         color = colors[i]
 
-        shift = 2
+        # dont't worry about shift because you are already downscaling
         new_img += cv2.fillPoly(base_img,
-            pts=[np.around(points * 2**shift).astype(np.int)],
+            pts=[np.around(points).astype(np.int)],
             color=color.tolist(),
-            lineType=cv2.LINE_8,
-            shift=shift)
+            lineType=cv2.LINE_4)
 
     new_img = cv2.resize(new_img, frame_size_final, interpolation=cv2.INTER_AREA)
     return new_img
@@ -89,6 +88,8 @@ def helper(params):
 def main():
     frame_size_final = (1920, 1080)
     scale = 4
+    repeats = 4
+    speed = 1/3
 
     image_width, image_height = frame_size_final
     filepath = f"videos/video_{image_width}x{image_height}.mp4"
@@ -96,20 +97,23 @@ def main():
     fps = 60
     writer = cv2.VideoWriter(filepath, fourcc, fps, (image_width, image_height))
 
-    colors = generate_colors()
-    angles = np.arange(0, 120, 0.5)
-    params = ((frame_size_final, scale, colors, angle) for angle in angles)
+    angles = np.arange(0, 120, speed)
+    t = tqdm(total=len(angles)*repeats)
+    for i in range(repeats):
+        np.random.seed(i)
+        colors = generate_colors()
+        params = ((frame_size_final, scale, colors, angle) for angle in angles)
 
-    with Pool() as pool:
-        for frame in tqdm(pool.imap(helper, params), total=len(angles)):
-            assert frame.dtype == np.uint8
-            writer.write(frame)
+        with Pool() as pool:
+            for frame in pool.imap(helper, params):
+                t.update()
+                writer.write(frame)
     writer.release()
 
-    # temppath = "temp.mp4"
-    # subprocess.run(f"mv {filepath} {temppath}".split(" "))
-    # subprocess.run(f"ffmpeg -an -i {temppath} -vcodec libx264 -pix_fmt yuv420p -profile:v baseline -level 3 {filepath}".split(" "))
-    # subprocess.run(f"rm {temppath}".split(" "))
+    temppath = "temp.mp4"
+    subprocess.run(f"mv {filepath} {temppath}".split(" "))
+    subprocess.run(f"ffmpeg -an -i {temppath} -vcodec libx264 -pix_fmt yuv420p -profile:v baseline -level 3 {filepath}".split(" "))
+    subprocess.run(f"rm {temppath}".split(" "))
 
     # subprocess.run(f"mpv {filepath} --fs --loop".split(" "))
 
